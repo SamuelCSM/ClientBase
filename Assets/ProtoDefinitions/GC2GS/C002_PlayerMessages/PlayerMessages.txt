@@ -1,0 +1,17 @@
+// 玩家模块消息定义 - 主协议号 002
+
+// 获取玩家信息请求
+message GC2GS_002_001_GetPlayerInfoRequest {
+    int64 PlayerId = 1;  // 玩家ID
+}
+
+// 更新玩家昵称请求
+message GC2GS_002_002_UpdateNicknameRequest {
+    string NewNickname = 1;  // 新昵称
+}
+
+// 获取玩家列表请求
+message GC2GS_002_003_GetPlayerListRequest {
+    int32 PageIndex = 1;  // 页码
+    int32 PageSize = 2;  // 每页数量
+}

@@ -1,0 +1,22 @@
+// 玩家模块响应消息 - 主协议号 002
+
+// 获取玩家信息响应
+message GS2GC_002_001_GetPlayerInfoResponse {
+    int32 ResultCode = 1;  // 结果码
+    int64 PlayerId = 2;  // 玩家ID
+    string PlayerName = 3;  // 玩家名称
+    int32 Level = 4;  // 等级
+    int64 Exp = 5;  // 经验值
+}
+
+// 更新玩家昵称响应
+message GS2GC_002_002_UpdateNicknameResponse {
+    int32 ResultCode = 1;  // 结果码
+    string NewNickname = 2;  // 新昵称
+}
+
+// 获取玩家列表响应
+message GS2GC_002_003_GetPlayerListResponse {
+    int32 ResultCode = 1;  // 结果码
+    int32 TotalCount = 2;  // 总数量
+}

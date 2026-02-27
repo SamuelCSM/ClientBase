@@ -1,0 +1,19 @@
+// 登录模块响应消息 - 主协议号 001
+
+// 登录响应消息
+message GS2GC_001_001_LoginResponse {
+    int32 ResultCode = 1;  // 结果码
+    string ErrorMessage = 2;  // 错误消息
+    int64 UserId = 3;  // 用户ID
+    string SessionToken = 4;  // 会话令牌
+    string Nickname = 5;  // 用户昵称
+    int32 Level = 6;  // 用户等级
+    int64 ServerTime = 7;  // 服务器时间戳
+}
+
+// 注册响应消息
+message GS2GC_001_002_RegisterResponse {
+    int32 ResultCode = 1;  // 结果码
+    string ErrorMessage = 2;  // 错误消息
+    int64 UserId = 3;  // 用户ID
+}

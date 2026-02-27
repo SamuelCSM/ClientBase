@@ -1,0 +1,26 @@
+// 枚举定义文件
+
+// 平台类型枚举
+enum PlatformType {
+    Windows = 0;  // Windows平台
+    Android = 1;  // Android平台
+    iOS = 2;  // iOS平台
+    WebGL = 3;  // WebGL平台
+}
+
+// 错误码枚举
+enum ErrorCode {
+    Success = 0;  // 成功
+    InvalidParameter = 1;  // 参数无效
+    NotFound = 2;  // 未找到
+    PermissionDenied = 3;  // 权限不足
+    ServerError = 4;  // 服务器错误
+}
+
+// 玩家状态枚举
+enum PlayerStatus {
+    Offline = 0;  // 离线
+    Online = 1;  // 在线
+    Busy = 2;  // 忙碌
+    Away = 3;  // 离开
+}

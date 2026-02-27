@@ -1,0 +1,18 @@
+// 登录模块消息定义 - 主协议号 001
+
+// 登录请求消息
+message GC2GS_001_001_LoginRequest {
+    string Username = 1;  // 用户名
+    string Password = 2;  // 密码
+    string ClientVersion = 3;  // 客户端版本
+    string DeviceId = 4;  // 设备ID
+    int32 Platform = 5;  // 平台类型
+}
+
+// 注册请求消息
+message GC2GS_001_002_RegisterRequest {
+    string Username = 1;  // 用户名
+    string Password = 2;  // 密码
+    string Email = 3;  // 邮箱
+    PlatformType Platform = 4;  // 平台类型
+}
