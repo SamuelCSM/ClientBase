@@ -6,11 +6,11 @@ using UnityEngine;
 namespace Framework.Data
 {
     /// <summary>
-    /// 配置管理器
+    /// 配置管理器（数据管理器）
     /// 负责管理所有配置表的加载、缓存和访问
     /// 支持按需加载和自动缓存
     /// </summary>
-    public class ConfigManager
+    public class ConfigManager : Core.FrameworkComponent
     {
         /// <summary>
         /// 配置表缓存字典（类型 -> 配置表实例）
@@ -27,6 +27,26 @@ namespace Framework.Data
         /// </summary>
         private bool _isInitialized;
 
+        #region 生命周期
+
+        /// <summary>
+        /// 初始化（框架生命周期）
+        /// </summary>
+        public override void OnInit()
+        {
+            Initialize();
+        }
+
+        /// <summary>
+        /// 关闭清理（框架生命周期）
+        /// </summary>
+        public override void OnShutdown()
+        {
+            Dispose();
+        }
+
+        #endregion
+
         /// <summary>
         /// 初始化配置管理器
         /// </summary>
@@ -35,7 +55,7 @@ namespace Framework.Data
         {
             if (_isInitialized)
             {
-                Debug.LogWarning("[ConfigManager] 配置管理器已经初始化，跳过重复初始化");
+                Logger.Warning("[ConfigManager] 配置管理器已经初始化，跳过重复初始化");
                 return;
             }
 
@@ -52,14 +72,15 @@ namespace Framework.Data
             // 检查数据库文件是否存在
             if (!File.Exists(_dbPath))
             {
-                Debug.LogWarning($"[ConfigManager] 配置数据库不存在: {_dbPath}");
+                Logger.Warning($"[ConfigManager] 配置数据库不存在: {_dbPath}");
             }
             else
             {
-                Debug.Log($"[ConfigManager] 配置数据库路径: {_dbPath}");
+                Logger.Log($"[ConfigManager] 配置数据库路径: {_dbPath}");
             }
 
             _isInitialized = true;
+            Logger.Log("[ConfigManager] 配置管理器初始化完成");
         }
 
         /// <summary>
@@ -98,13 +119,13 @@ namespace Framework.Data
                 // 加入缓存
                 _configCache[configType] = config;
 
-                Debug.Log($"[ConfigManager] 配置表 {configType.Name} 加载成功，共 {config.Count} 条数据");
+                Logger.Log($"[ConfigManager] 配置表 {configType.Name} 加载成功，共 {config.Count} 条数据");
 
                 return config;
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[ConfigManager] 加载配置表 {configType.Name} 失败: {ex.Message}");
+                Logger.Error($"[ConfigManager] 加载配置表 {configType.Name} 失败: {ex.Message}");
                 throw;
             }
         }
@@ -133,7 +154,7 @@ namespace Framework.Data
                     // 检查是否实现了 IConfigTable 接口
                     if (!typeof(IConfigTable).IsAssignableFrom(configType))
                     {
-                        Debug.LogWarning($"[ConfigManager] 类型 {configType.Name} 没有实现 IConfigTable 接口");
+                        Logger.Warning($"[ConfigManager] 类型 {configType.Name} 没有实现 IConfigTable 接口");
                         continue;
                     }
 
@@ -141,7 +162,7 @@ namespace Framework.Data
                     IConfigTable config = Activator.CreateInstance(configType) as IConfigTable;
                     if (config == null)
                     {
-                        Debug.LogWarning($"[ConfigManager] 无法创建配置表实例: {configType.Name}");
+                        Logger.Warning($"[ConfigManager] 无法创建配置表实例: {configType.Name}");
                         continue;
                     }
 
@@ -158,11 +179,11 @@ namespace Framework.Data
                     // 加入缓存
                     _configCache[configType] = config;
 
-                    Debug.Log($"[ConfigManager] 预加载配置表 {configType.Name} 成功，共 {config.Count} 条数据");
+                    Logger.Log($"[ConfigManager] 预加载配置表 {configType.Name} 成功，共 {config.Count} 条数据");
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[ConfigManager] 预加载配置表 {configType.Name} 失败: {ex.Message}");
+                    Logger.Error($"[ConfigManager] 预加载配置表 {configType.Name} 失败: {ex.Message}");
                 }
             }
         }
@@ -183,7 +204,7 @@ namespace Framework.Data
                 // 从缓存中移除
                 _configCache.Remove(configType);
 
-                Debug.Log($"[ConfigManager] 配置表 {configType.Name} 已卸载");
+                Logger.Log($"[ConfigManager] 配置表 {configType.Name} 已卸载");
             }
         }
 
@@ -200,12 +221,12 @@ namespace Framework.Data
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogError($"[ConfigManager] 卸载配置表 {kvp.Key.Name} 失败: {ex.Message}");
+                    Logger.Error($"[ConfigManager] 卸载配置表 {kvp.Key.Name} 失败: {ex.Message}");
                 }
             }
 
             _configCache.Clear();
-            Debug.Log("[ConfigManager] 所有配置表已卸载");
+            Logger.Log("[ConfigManager] 所有配置表已卸载");
         }
 
         /// <summary>
@@ -232,7 +253,7 @@ namespace Framework.Data
 
             PreloadConfigs(configTypes.ToArray());
 
-            Debug.Log("[ConfigManager] 所有配置表已重新加载");
+            Logger.Log("[ConfigManager] 所有配置表已重新加载");
         }
 
         /// <summary>
@@ -268,7 +289,7 @@ namespace Framework.Data
         {
             UnloadAllConfigs();
             _isInitialized = false;
-            Debug.Log("[ConfigManager] 配置管理器已释放");
+            Logger.Log("[ConfigManager] 配置管理器已释放");
         }
 
         #region 私有方法

@@ -33,9 +33,9 @@ namespace Framework.Core
         public static Framework.NetworkManager Network { get; private set; }
 
         /// <summary>
-        /// 数据管理器
+        /// 配置管理器
         /// </summary>
-        public static DataManager Data { get; private set; }
+        public static Data.ConfigManager RefData { get; private set; }
 
         /// <summary>
         /// 事件管理器
@@ -106,12 +106,12 @@ namespace Framework.Core
             Resource = AddComponent<ResourceManager>();
             UI = AddComponent<UIManager>();
             Network = AddComponent<NetworkManager>();
+            RefData = AddComponent<Data.ConfigManager>();
             Audio = AddComponent<AudioManager>();
 
-			// 待实现的Manager（当实现后取消注释）
-			// Data = AddComponent<DataManager>();
-			// Scene = AddComponent<SceneManager>();
-			// HotUpdate = AddComponent<HotUpdateManager>();
+            // 待实现的Manager（当实现后取消注释）
+            // Scene = AddComponent<SceneManager>();
+            // HotUpdate = AddComponent<HotUpdateManager>();
 
 			Debug.Log("[GameEntry] 所有Manager初始化完成");
         }
@@ -196,13 +196,6 @@ namespace Framework.Core
 
     // ==================== Manager 占位类 ====================
     // 这些类将在后续任务中实现，目前只是占位以避免编译错误
-
-    /// <summary>
-    /// 数据管理器（占位）
-    /// </summary>
-    public class DataManager : FrameworkComponent
-    {
-    }
 
     /// <summary>
     /// 场景管理器（占位）
