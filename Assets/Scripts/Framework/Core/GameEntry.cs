@@ -45,7 +45,7 @@ namespace Framework.Core
         /// <summary>
         /// 音频管理器
         /// </summary>
-        public static AudioManager Audio { get; private set; }
+         public static AudioManager Audio { get; private set; }
 
         /// <summary>
         /// 场景管理器
@@ -104,16 +104,16 @@ namespace Framework.Core
             Event = AddComponent<EventManager>();
             Timer = AddComponent<TimerManager>();
             Resource = AddComponent<ResourceManager>();
-            UI = AddComponent<Framework.UIManager>();
-            Network = AddComponent<Framework.NetworkManager>();
+            UI = AddComponent<UIManager>();
+            Network = AddComponent<NetworkManager>();
+            Audio = AddComponent<AudioManager>();
 
-            // 待实现的Manager（当实现后取消注释）
-            // Data = AddComponent<DataManager>();
-            // Audio = AddComponent<AudioManager>();
-            // Scene = AddComponent<SceneManager>();
-            // HotUpdate = AddComponent<HotUpdateManager>();
+			// 待实现的Manager（当实现后取消注释）
+			// Data = AddComponent<DataManager>();
+			// Scene = AddComponent<SceneManager>();
+			// HotUpdate = AddComponent<HotUpdateManager>();
 
-            Debug.Log("[GameEntry] 所有Manager初始化完成");
+			Debug.Log("[GameEntry] 所有Manager初始化完成");
         }
 
         /// <summary>
@@ -201,13 +201,6 @@ namespace Framework.Core
     /// 数据管理器（占位）
     /// </summary>
     public class DataManager : FrameworkComponent
-    {
-    }
-
-    /// <summary>
-    /// 音频管理器（占位）
-    /// </summary>
-    public class AudioManager : FrameworkComponent
     {
     }
 
