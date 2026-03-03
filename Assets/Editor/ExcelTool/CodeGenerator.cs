@@ -23,6 +23,16 @@ namespace Editor.ExcelTool
             public string Namespace { get; set; } = "HotUpdate.Config";
 
             /// <summary>
+            /// 数据类输出目录
+            /// </summary>
+            public string DataOutputPath { get; set; } = "Assets/Scripts/HotUpdate/ConfigData/Data";
+
+            /// <summary>
+            /// Table 类输出目录
+            /// </summary>
+            public string TableOutputPath { get; set; } = "Assets/Scripts/HotUpdate/ConfigData/Table";
+
+            /// <summary>
             /// 是否生成注释
             /// </summary>
             public bool GenerateComments { get; set; } = true;
@@ -54,12 +64,38 @@ namespace Editor.ExcelTool
         }
 
         /// <summary>
+        /// 代码生成结果
+        /// </summary>
+        public class GenerateResult
+        {
+            /// <summary>
+            /// 数据类代码
+            /// </summary>
+            public string DataClassCode { get; set; }
+
+            /// <summary>
+            /// Table 类代码
+            /// </summary>
+            public string TableClassCode { get; set; }
+
+            /// <summary>
+            /// 数据类文件路径
+            /// </summary>
+            public string DataClassPath { get; set; }
+
+            /// <summary>
+            /// Table 类文件路径
+            /// </summary>
+            public string TableClassPath { get; set; }
+        }
+
+        /// <summary>
         /// 生成配置类代码
         /// </summary>
         /// <param name="sheetData">Excel 表数据</param>
         /// <param name="className">类名（如果为空则使用表名）</param>
-        /// <returns>生成的 C# 代码</returns>
-        public string GenerateConfigClass(ExcelReader.ExcelSheetData sheetData, string className = null)
+        /// <returns>生成结果</returns>
+        public GenerateResult GenerateConfigClass(ExcelReader.ExcelSheetData sheetData, string className = null)
         {
             if (sheetData == null)
             {
@@ -74,6 +110,24 @@ namespace Editor.ExcelTool
             // 确保类名符合 C# 命名规范
             className = SanitizeClassName(className);
 
+            var result = new GenerateResult();
+
+            // 生成数据类代码
+            result.DataClassCode = GenerateDataClass(sheetData, className);
+            result.DataClassPath = $"{_config.DataOutputPath}/{className}.cs";
+
+            // 生成 Table 类代码
+            result.TableClassCode = GenerateTableClass(sheetData, className);
+            result.TableClassPath = $"{_config.TableOutputPath}/{className}Table.cs";
+
+            return result;
+        }
+
+        /// <summary>
+        /// 生成数据类代码
+        /// </summary>
+        private string GenerateDataClass(ExcelReader.ExcelSheetData sheetData, string className)
+        {
             var sb = new StringBuilder();
 
             // 生成文件头注释
@@ -83,11 +137,46 @@ namespace Editor.ExcelTool
             GenerateUsings(sb);
 
             // 开始命名空间
-            sb.AppendLine($"namespace {_config.Namespace}");
+            sb.AppendLine($"namespace {_config.Namespace}.Data");
             sb.AppendLine("{");
 
             // 生成配置类
             GenerateClass(sb, sheetData, className);
+
+            // 结束命名空间
+            sb.AppendLine("}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 生成 Table 类代码
+        /// </summary>
+        private string GenerateTableClass(ExcelReader.ExcelSheetData sheetData, string className)
+        {
+            var sb = new StringBuilder();
+
+            // 生成文件头注释
+            if (_config.GenerateComments)
+            {
+                sb.AppendLine("// ==========================================");
+                sb.AppendLine($"// 自动生成的配置表加载类: {className}Table");
+                sb.AppendLine($"// 来源表: {sheetData.SheetName}");
+                sb.AppendLine($"// 生成时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                sb.AppendLine("// 警告: 请勿手动修改此文件！");
+                sb.AppendLine("// ==========================================");
+                sb.AppendLine();
+            }
+
+            // 生成 using 语句
+            sb.AppendLine("using System;");
+            sb.AppendLine("using Framework.Data;");
+            sb.AppendLine($"using {_config.Namespace}.Data;");
+            sb.AppendLine();
+
+            // 开始命名空间
+            sb.AppendLine($"namespace {_config.Namespace}.Table");
+            sb.AppendLine("{");
 
             // 生成配置表加载类
             GenerateLoaderClass(sb, sheetData, className);
@@ -173,9 +262,10 @@ namespace Editor.ExcelTool
             for (int i = 0; i < sheetData.FieldNames.Count; i++)
             {
                 var fieldName = sheetData.FieldNames[i];
+                var typeName = i < sheetData.TypeDefinitions.Count ? sheetData.TypeDefinitions[i] : "string";
                 var comment = i < sheetData.Comments.Count ? sheetData.Comments[i] : "";
 
-                GenerateProperty(sb, fieldName, comment, i == 0, indent + _config.Indent);
+                GenerateProperty(sb, fieldName, typeName, comment, i == 0, indent + _config.Indent);
             }
 
             // 类结束
@@ -186,10 +276,8 @@ namespace Editor.ExcelTool
         /// <summary>
         /// 生成属性
         /// </summary>
-        private void GenerateProperty(StringBuilder sb, string fieldName, string comment, bool isPrimaryKey, string indent)
+        private void GenerateProperty(StringBuilder sb, string fieldName, string typeName, string comment, bool isPrimaryKey, string indent)
         {
-            // 推断类型
-            var propertyType = InferPropertyType(fieldName);
             var propertyName = SanitizePropertyName(fieldName);
 
             // 属性注释
@@ -212,7 +300,7 @@ namespace Editor.ExcelTool
             }
 
             // 属性声明
-            sb.AppendLine($"{indent}public {propertyType} {propertyName} {{ get; set; }}");
+            sb.AppendLine($"{indent}public {typeName} {propertyName} {{ get; set; }}");
             sb.AppendLine();
         }
 
@@ -222,10 +310,9 @@ namespace Editor.ExcelTool
         private void GenerateLoaderClass(StringBuilder sb, ExcelReader.ExcelSheetData sheetData, string className)
         {
             var indent = _config.Indent;
-            var loaderClassName = $"{className}Table";
-
-            // 推断主键类型
-            var primaryKeyType = sheetData.FieldNames.Count > 0 ? InferPropertyType(sheetData.FieldNames[0]) : "int";
+            
+            // 获取主键类型（使用类型定义行的第一个类型）
+            var primaryKeyType = sheetData.TypeDefinitions.Count > 0 ? sheetData.TypeDefinitions[0] : "int";
 
             // 类注释
             if (_config.GenerateComments)
@@ -236,6 +323,7 @@ namespace Editor.ExcelTool
             }
 
             // 类声明
+            var loaderClassName = $"{className}Table";
             sb.AppendLine($"{indent}public class {loaderClassName} : ConfigBase<{primaryKeyType}, {className}>");
             sb.AppendLine($"{indent}{{");
 
@@ -389,18 +477,18 @@ namespace Editor.ExcelTool
         /// 批量生成配置类代码
         /// </summary>
         /// <param name="sheets">多个 Excel 表数据</param>
-        /// <returns>类名 -> 代码的字典</returns>
-        public Dictionary<string, string> GenerateConfigClasses(List<ExcelReader.ExcelSheetData> sheets)
+        /// <returns>类名 -> 生成结果的字典</returns>
+        public Dictionary<string, GenerateResult> GenerateConfigClasses(List<ExcelReader.ExcelSheetData> sheets)
         {
-            var result = new Dictionary<string, string>();
+            var result = new Dictionary<string, GenerateResult>();
 
             foreach (var sheet in sheets)
             {
                 try
                 {
                     var className = SanitizeClassName(sheet.SheetName);
-                    var code = GenerateConfigClass(sheet, className);
-                    result[className] = code;
+                    var generateResult = GenerateConfigClass(sheet, className);
+                    result[className] = generateResult;
 
                     Debug.Log($"[CodeGenerator] 成功生成配置类: {className}");
                 }

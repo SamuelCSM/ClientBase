@@ -33,9 +33,14 @@ namespace Editor.ExcelTool
             public int FieldNameRowIndex { get; set; } = 1;
 
             /// <summary>
+            /// 类型定义行索引（从0开始）
+            /// </summary>
+            public int TypeRowIndex { get; set; } = 2;
+
+            /// <summary>
             /// 数据起始行索引（从0开始）
             /// </summary>
-            public int DataStartRowIndex { get; set; } = 2;
+            public int DataStartRowIndex { get; set; } = 3;
         }
 
         /// <summary>
@@ -54,6 +59,11 @@ namespace Editor.ExcelTool
             public List<string> FieldNames { get; set; }
 
             /// <summary>
+            /// 类型定义列表（与字段名对应）
+            /// </summary>
+            public List<string> TypeDefinitions { get; set; }
+
+            /// <summary>
             /// 注释列表（与字段名对应）
             /// </summary>
             public List<string> Comments { get; set; }
@@ -66,6 +76,7 @@ namespace Editor.ExcelTool
             public ExcelSheetData()
             {
                 FieldNames = new List<string>();
+                TypeDefinitions = new List<string>();
                 Comments = new List<string>();
                 DataRows = new List<Dictionary<string, object>>();
             }
@@ -154,11 +165,11 @@ namespace Editor.ExcelTool
             }
 
             // 检查行数是否足够
-            if (table.Rows.Count <= _format.DataStartRowIndex)
-            {
-                Debug.LogWarning($"[ExcelReader] 工作表 {table.TableName} 数据行不足，跳过");
-                return null;
-            }
+            //if (table.Rows.Count <= _format.DataStartRowIndex)
+            //{
+            //    Debug.LogWarning($"[ExcelReader] 工作表 {table.TableName} 数据行不足，跳过");
+            //    return null;
+            //}
 
             var sheetData = new ExcelSheetData
             {
@@ -193,6 +204,17 @@ namespace Editor.ExcelTool
                         }
 
                         sheetData.FieldNames.Add(fieldName.Trim());
+                    }
+                }
+
+                // 读取类型定义行
+                if (_format.TypeRowIndex < table.Rows.Count)
+                {
+                    var typeRow = table.Rows[_format.TypeRowIndex];
+                    for (int col = 0; col < sheetData.FieldNames.Count && col < table.Columns.Count; col++)
+                    {
+                        var typeDef = typeRow[col]?.ToString() ?? "string";
+                        sheetData.TypeDefinitions.Add(typeDef.Trim());
                     }
                 }
 
@@ -317,6 +339,12 @@ namespace Editor.ExcelTool
                 if (actualType.IsArray)
                 {
                     return ParseArray(cellValue, actualType);
+                }
+
+                // List 类型（格式：[1,2,3] 或 1,2,3）
+                if (actualType.IsGenericType && actualType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    return ParseList(cellValue, actualType);
                 }
 
                 // 自定义类型（JSON格式）
@@ -452,6 +480,40 @@ namespace Editor.ExcelTool
             }
 
             return array;
+        }
+
+        private static object ParseList(object value, Type listType)
+        {
+            var str = value.ToString().Trim();
+            
+            // 移除方括号
+            if (str.StartsWith("[") && str.EndsWith("]"))
+            {
+                str = str.Substring(1, str.Length - 2);
+            }
+
+            // 获取元素类型
+            var elementType = listType.GetGenericArguments()[0];
+            
+            // 创建 List 实例
+            var listInstance = Activator.CreateInstance(listType);
+            var addMethod = listType.GetMethod("Add");
+
+            if (string.IsNullOrWhiteSpace(str))
+            {
+                return listInstance;
+            }
+
+            // 分割字符串
+            var parts = str.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            for (int i = 0; i < parts.Length; i++)
+            {
+                var element = ParseCellValue(parts[i].Trim(), elementType);
+                addMethod.Invoke(listInstance, new[] { element });
+            }
+
+            return listInstance;
         }
 
         private static object ParseCustomType(object value, Type targetType)

@@ -10,164 +10,191 @@ namespace Editor.ExcelTool
     public class CodeGeneratorExample
     {
         /// <summary>
-        /// 示例：从 Excel 生成配置类代码
+        /// 示例1：生成单个配置类
         /// </summary>
-        [MenuItem("Tools/Excel/Generate Config Code Example")]
-        public static void GenerateConfigCodeExample()
+        [MenuItem("Tools/Excel/Examples/生成单个配置类")]
+        public static void Example1_GenerateSingleClass()
         {
-            // 1. 读取 Excel 文件
-            var excelPath = "Assets/Editor/ExcelTool/TestData/ItemConfig.xlsx"; // 示例路径
-            
-            if (!File.Exists(excelPath))
+            // 创建读取器
+            var reader = new ExcelReader();
+
+            // 读取 Excel 文件
+            var sheets = reader.ReadExcel("Assets/Editor/ExcelTool/TestData/ItemConfig.xlsx");
+
+            if (sheets.Count == 0)
             {
-                Debug.LogWarning($"[CodeGeneratorExample] Excel 文件不存在: {excelPath}");
+                Debug.LogError("未找到工作表");
                 return;
             }
 
-            try
+            // 创建代码生成器
+            var generator = new CodeGenerator();
+
+            // 生成代码
+            var result = generator.GenerateConfigClass(sheets[0], "ItemConfig");
+
+            // 保存数据类文件
+            var dataDirectory = Path.GetDirectoryName(result.DataClassPath);
+            if (!Directory.Exists(dataDirectory))
             {
-                var excelReader = new ExcelReader();
-                var sheets = excelReader.ReadExcel(excelPath);
-
-                if (sheets.Count == 0)
-                {
-                    Debug.LogWarning("[CodeGeneratorExample] 没有读取到任何工作表");
-                    return;
-                }
-
-                // 2. 创建代码生成器
-                var config = new CodeGenerator.GeneratorConfig
-                {
-                    Namespace = "HotUpdate.Config",
-                    GenerateComments = true,
-                    UseSQLiteAttributes = true,
-                    GenerateSerializable = true
-                };
-
-                var generator = new CodeGenerator(config);
-
-                // 3. 生成配置类代码
-                foreach (var sheet in sheets)
-                {
-                    Debug.Log($"[CodeGeneratorExample] 开始生成配置类: {sheet.SheetName}");
-
-                    var code = generator.GenerateConfigClass(sheet);
-
-                    // 4. 输出到控制台（实际使用时应该保存到文件）
-                    Debug.Log($"[CodeGeneratorExample] 生成的代码:\n{code}");
-
-                    // 5. 保存到文件（可选）
-                    var outputPath = $"Assets/Scripts/HotUpdate/Config/{sheet.SheetName}.cs";
-                    SaveCodeToFile(code, outputPath);
-                }
-
-                Debug.Log("[CodeGeneratorExample] 代码生成完成");
+                Directory.CreateDirectory(dataDirectory);
             }
-            catch (System.Exception ex)
+            File.WriteAllText(result.DataClassPath, result.DataClassCode, System.Text.Encoding.UTF8);
+
+            // 保存 Table 类文件
+            var tableDirectory = Path.GetDirectoryName(result.TableClassPath);
+            if (!Directory.Exists(tableDirectory))
             {
-                Debug.LogError($"[CodeGeneratorExample] 代码生成失败: {ex.Message}");
+                Directory.CreateDirectory(tableDirectory);
             }
+            File.WriteAllText(result.TableClassPath, result.TableClassCode, System.Text.Encoding.UTF8);
+
+            Debug.Log($"代码已生成:\n数据类: {result.DataClassPath}\nTable类: {result.TableClassPath}");
+            
+            // 刷新资源
+            AssetDatabase.Refresh();
         }
 
         /// <summary>
-        /// 示例：批量生成配置类代码
+        /// 示例2：批量生成配置类
         /// </summary>
-        public static void GenerateBatchConfigCode()
+        [MenuItem("Tools/Excel/Examples/批量生成配置类")]
+        public static void Example2_GenerateBatchClasses()
         {
             var excelFiles = new[]
             {
                 "Assets/Editor/ExcelTool/TestData/ItemConfig.xlsx",
                 "Assets/Editor/ExcelTool/TestData/SkillConfig.xlsx",
-                // 添加更多文件...
             };
 
+            var generator = new CodeGenerator();
+            var reader = new ExcelReader();
+
+            foreach (var excelPath in excelFiles)
+            {
+                if (!File.Exists(excelPath))
+                {
+                    Debug.LogWarning($"Excel 文件不存在: {excelPath}");
+                    continue;
+                }
+
+                try
+                {
+                    var sheets = reader.ReadExcel(excelPath);
+                    var results = generator.GenerateConfigClasses(sheets);
+
+                    foreach (var kvp in results)
+                    {
+                        var className = kvp.Key;
+                        var result = kvp.Value;
+
+                        // 保存数据类
+                        var dataDirectory = Path.GetDirectoryName(result.DataClassPath);
+                        if (!Directory.Exists(dataDirectory))
+                        {
+                            Directory.CreateDirectory(dataDirectory);
+                        }
+                        File.WriteAllText(result.DataClassPath, result.DataClassCode, System.Text.Encoding.UTF8);
+
+                        // 保存 Table 类
+                        var tableDirectory = Path.GetDirectoryName(result.TableClassPath);
+                        if (!Directory.Exists(tableDirectory))
+                        {
+                            Directory.CreateDirectory(tableDirectory);
+                        }
+                        File.WriteAllText(result.TableClassPath, result.TableClassCode, System.Text.Encoding.UTF8);
+
+                        Debug.Log($"已生成: {className}");
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"处理文件失败: {excelPath}, 错误: {ex.Message}");
+                }
+            }
+
+            Debug.Log("批量代码生成完成");
+            AssetDatabase.Refresh();
+        }
+
+        /// <summary>
+        /// 示例3：自定义输出路径
+        /// </summary>
+        [MenuItem("Tools/Excel/Examples/自定义输出路径")]
+        public static void Example3_CustomOutputPath()
+        {
             var config = new CodeGenerator.GeneratorConfig
             {
-                Namespace = "HotUpdate.Config",
+                Namespace = "MyGame.Config",
+                DataOutputPath = "Assets/Scripts/MyGame/ConfigData/Data",
+                TableOutputPath = "Assets/Scripts/MyGame/ConfigData/Table",
                 GenerateComments = true,
                 UseSQLiteAttributes = true,
                 GenerateSerializable = true
             };
 
             var generator = new CodeGenerator(config);
-            var excelReader = new ExcelReader();
+            var reader = new ExcelReader();
 
-            foreach (var excelPath in excelFiles)
+            var sheets = reader.ReadExcel("Assets/Editor/ExcelTool/TestData/ItemConfig.xlsx");
+            if (sheets.Count > 0)
             {
-                if (!File.Exists(excelPath))
+                var result = generator.GenerateConfigClass(sheets[0], "ItemConfig");
+
+                // 保存文件
+                var dataDirectory = Path.GetDirectoryName(result.DataClassPath);
+                if (!Directory.Exists(dataDirectory))
                 {
-                    Debug.LogWarning($"[CodeGeneratorExample] Excel 文件不存在: {excelPath}");
-                    continue;
+                    Directory.CreateDirectory(dataDirectory);
                 }
+                File.WriteAllText(result.DataClassPath, result.DataClassCode, System.Text.Encoding.UTF8);
 
-                try
+                var tableDirectory = Path.GetDirectoryName(result.TableClassPath);
+                if (!Directory.Exists(tableDirectory))
                 {
-                    var sheets = excelReader.ReadExcel(excelPath);
-                    var codeDict = generator.GenerateConfigClasses(sheets);
-
-                    foreach (var kvp in codeDict)
-                    {
-                        var className = kvp.Key;
-                        var code = kvp.Value;
-
-                        var outputPath = $"Assets/Scripts/HotUpdate/Config/{className}.cs";
-                        SaveCodeToFile(code, outputPath);
-                    }
+                    Directory.CreateDirectory(tableDirectory);
                 }
-                catch (System.Exception ex)
-                {
-                    Debug.LogError($"[CodeGeneratorExample] 处理文件失败: {excelPath}, 错误: {ex.Message}");
-                }
-            }
+                File.WriteAllText(result.TableClassPath, result.TableClassCode, System.Text.Encoding.UTF8);
 
-            Debug.Log("[CodeGeneratorExample] 批量代码生成完成");
-        }
-
-        /// <summary>
-        /// 保存代码到文件
-        /// </summary>
-        private static void SaveCodeToFile(string code, string filePath)
-        {
-            try
-            {
-                // 确保目录存在
-                var directory = Path.GetDirectoryName(filePath);
-                if (!Directory.Exists(directory))
-                {
-                    Directory.CreateDirectory(directory);
-                }
-
-                // 写入文件
-                File.WriteAllText(filePath, code, System.Text.Encoding.UTF8);
-
-                Debug.Log($"[CodeGeneratorExample] 代码已保存到: {filePath}");
-
-                // 刷新 Unity 资源
+                Debug.Log($"代码已生成到自定义路径:\n{result.DataClassPath}\n{result.TableClassPath}");
                 AssetDatabase.Refresh();
             }
-            catch (System.Exception ex)
-            {
-                Debug.LogError($"[CodeGeneratorExample] 保存文件失败: {filePath}, 错误: {ex.Message}");
-            }
         }
 
         /// <summary>
-        /// 示例：自定义代码生成配置
+        /// 示例4：指定类名
         /// </summary>
-        public static void GenerateWithCustomConfig()
+        [MenuItem("Tools/Excel/Examples/指定类名")]
+        public static void Example4_CustomClassName()
         {
-            var config = new CodeGenerator.GeneratorConfig
+            var reader = new ExcelReader();
+            var sheets = reader.ReadExcel("Assets/Editor/ExcelTool/TestData/ItemConfig.xlsx");
+
+            if (sheets.Count > 0)
             {
-                Namespace = "MyGame.Data",           // 自定义命名空间
-                GenerateComments = true,              // 生成注释
-                UseSQLiteAttributes = true,           // 使用 SQLite 特性
-                GenerateSerializable = true,          // 生成 Serializable 特性
-                Indent = "    "                       // 使用 4 个空格缩进
-            };
+                var generator = new CodeGenerator();
+                
+                // 使用自定义类名而不是表名
+                var result = generator.GenerateConfigClass(sheets[0], "MyCustomItemConfig");
 
-            var generator = new CodeGenerator(config);
+                // 保存文件
+                var dataDirectory = Path.GetDirectoryName(result.DataClassPath);
+                if (!Directory.Exists(dataDirectory))
+                {
+                    Directory.CreateDirectory(dataDirectory);
+                }
+                File.WriteAllText(result.DataClassPath, result.DataClassCode, System.Text.Encoding.UTF8);
 
-            // 使用自定义配置生成代码...
+                var tableDirectory = Path.GetDirectoryName(result.TableClassPath);
+                if (!Directory.Exists(tableDirectory))
+                {
+                    Directory.CreateDirectory(tableDirectory);
+                }
+                File.WriteAllText(result.TableClassPath, result.TableClassCode, System.Text.Encoding.UTF8);
+
+                Debug.Log($"已生成自定义类名: MyCustomItemConfig");
+                AssetDatabase.Refresh();
+            }
         }
     }
 }
