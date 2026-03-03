@@ -50,7 +50,7 @@ namespace Framework.Core
         /// <summary>
         /// 场景管理器
         /// </summary>
-        public static SceneManager Scene { get; private set; }
+        public static Framework.SceneManager Scene { get; private set; }
 
         /// <summary>
         /// 定时器管理器
@@ -110,7 +110,7 @@ namespace Framework.Core
             Audio = AddComponent<AudioManager>();
 
             // 待实现的Manager（当实现后取消注释）
-            // Scene = AddComponent<SceneManager>();
+            Scene = AddComponent<Framework.SceneManager>();
             // HotUpdate = AddComponent<HotUpdateManager>();
 
 			Debug.Log("[GameEntry] 所有Manager初始化完成");
@@ -196,13 +196,6 @@ namespace Framework.Core
 
     // ==================== Manager 占位类 ====================
     // 这些类将在后续任务中实现，目前只是占位以避免编译错误
-
-    /// <summary>
-    /// 场景管理器（占位）
-    /// </summary>
-    public class SceneManager : FrameworkComponent
-    {
-    }
 
     /// <summary>
     /// 热更新管理器（占位）
