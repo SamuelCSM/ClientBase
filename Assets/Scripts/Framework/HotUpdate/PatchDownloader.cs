@@ -8,7 +8,7 @@ namespace Framework.HotUpdate
 {
     /// <summary>
     /// 补丁下载器
-    /// 负责从服务器下载补丁文件，支持断点续传
+    /// 负责从服务器下载补丁文件，支持断点续传和重试机制
     /// </summary>
     public class PatchDownloader
     {
@@ -16,6 +16,8 @@ namespace Framework.HotUpdate
         private bool _isCancelled;
         private long _downloadedSize;
         private long _totalSize;
+        private int _maxRetryCount = 3;
+        private float _retryDelay = 2.0f;
         
         /// <summary>
         /// 已下载大小
@@ -28,13 +30,60 @@ namespace Framework.HotUpdate
         public long TotalSize => _totalSize;
         
         /// <summary>
-        /// 下载文件
+        /// 最大重试次数
+        /// </summary>
+        public int MaxRetryCount
+        {
+            get => _maxRetryCount;
+            set => _maxRetryCount = Math.Max(0, value);
+        }
+        
+        /// <summary>
+        /// 重试延迟（秒）
+        /// </summary>
+        public float RetryDelay
+        {
+            get => _retryDelay;
+            set => _retryDelay = Math.Max(0, value);
+        }
+        
+        /// <summary>
+        /// 下载文件（带重试机制）
         /// </summary>
         /// <param name="url">下载URL</param>
         /// <param name="savePath">保存路径</param>
         /// <param name="onProgress">进度回调(0-1)</param>
         /// <returns>是否下载成功</returns>
         public async UniTask<bool> DownloadFileAsync(string url, string savePath, Action<float> onProgress = null)
+        {
+            int retryCount = 0;
+            
+            while (retryCount <= _maxRetryCount)
+            {
+                bool success = await DownloadFileInternalAsync(url, savePath, onProgress);
+                
+                if (success || _isCancelled)
+                {
+                    return success;
+                }
+                
+                retryCount++;
+                
+                if (retryCount <= _maxRetryCount)
+                {
+                    Logger.Warning($"[PatchDownloader] 下载失败，{_retryDelay}秒后重试 ({retryCount}/{_maxRetryCount})");
+                    await UniTask.Delay(TimeSpan.FromSeconds(_retryDelay));
+                }
+            }
+            
+            Logger.Error($"[PatchDownloader] 下载失败，已达到最大重试次数: {url}");
+            return false;
+        }
+        
+        /// <summary>
+        /// 下载文件（内部实现）
+        /// </summary>
+        private async UniTask<bool> DownloadFileInternalAsync(string url, string savePath, Action<float> onProgress)
         {
             _isCancelled = false;
             _downloadedSize = 0;

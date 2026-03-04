@@ -17,6 +17,8 @@ namespace Framework.HotUpdate
     {
         private UpdateState _state = UpdateState.None;
         private Assembly _hotUpdateAssembly;
+        private PatchDownloader _patchDownloader;
+        private FileVerifier _fileVerifier;
         
         /// <summary>
         /// 当前更新状态
@@ -41,6 +43,8 @@ namespace Framework.HotUpdate
         public override void OnInit()
         {
             base.OnInit();
+            _patchDownloader = new PatchDownloader();
+            _fileVerifier = new FileVerifier();
             Logger.Log("[HotUpdateManager] 热更新管理器初始化");
         }
         
@@ -56,28 +60,60 @@ namespace Framework.HotUpdate
             
             try
             {
-                // TODO: 实现版本检查逻辑
-                // 1. 从服务器下载version.json
-                // 2. 解析版本信息
-                // 3. 与本地版本对比
+                // 获取本地版本
+                UpdateInfo localVersion = VersionManager.GetLocalVersion();
+                Logger.Log($"[HotUpdateManager] 本地版本: {localVersion.AppVersion}, 资源版本: {localVersion.ResourceVersion}, 代码版本: {localVersion.CodeVersion}");
                 
-                // 临时返回空更新信息（表示无需更新）
-                await UniTask.Delay(100);
+                // 从服务器下载version.json
+                string versionUrl = $"{updateUrl}/version.json";
+                string tempPath = Path.Combine(Application.temporaryCachePath, "version_temp.json");
                 
-                var updateInfo = new UpdateInfo
+                bool downloadSuccess = await _patchDownloader.DownloadFileAsync(versionUrl, tempPath);
+                
+                if (!downloadSuccess)
                 {
-                    AppVersion = Application.version,
-                    ResourceVersion = 1,
-                    CodeVersion = 1,
-                    ForceUpdate = false,
-                    MinCompatibleVersion = Application.version,
-                    PatchFiles = new List<PatchFile>()
-                };
+                    Logger.Error("[HotUpdateManager] 下载版本文件失败");
+                    _state = UpdateState.Error;
+                    OnUpdateError?.Invoke("下载版本文件失败");
+                    return null;
+                }
                 
-                Logger.Log("[HotUpdateManager] 版本检查完成，无需更新");
+                // 解析版本信息
+                string json = File.ReadAllText(tempPath);
+                UpdateInfo serverVersion = JsonUtility.FromJson<UpdateInfo>(json);
+                
+                Logger.Log($"[HotUpdateManager] 服务器版本: {serverVersion.AppVersion}, 资源版本: {serverVersion.ResourceVersion}, 代码版本: {serverVersion.CodeVersion}");
+                
+                // 判断更新类型
+                UpdateType updateType = VersionManager.DetermineUpdateType(localVersion, serverVersion);
+                serverVersion.Type = updateType;
+                
+                // 检查版本兼容性
+                if (!string.IsNullOrEmpty(serverVersion.MinCompatibleVersion))
+                {
+                    bool isCompatible = VersionManager.CheckCompatibility(localVersion.AppVersion, serverVersion.MinCompatibleVersion);
+                    
+                    if (!isCompatible)
+                    {
+                        Logger.Warning("[HotUpdateManager] 版本不兼容，需要强制更新");
+                        serverVersion.ForceUpdate = true;
+                        serverVersion.Type = UpdateType.FullUpdate;
+                    }
+                }
+                
+                // 触发更新可用事件
+                if (updateType != UpdateType.None)
+                {
+                    OnUpdateAvailable?.Invoke(serverVersion);
+                    Logger.Log($"[HotUpdateManager] 发现更新: {updateType}, 补丁数量: {serverVersion.PatchFiles.Count}");
+                }
+                else
+                {
+                    Logger.Log("[HotUpdateManager] 版本检查完成，无需更新");
+                }
+                
                 _state = UpdateState.None;
-                
-                return updateInfo;
+                return serverVersion;
             }
             catch (Exception ex)
             {
@@ -96,20 +132,78 @@ namespace Framework.HotUpdate
         public async UniTask DownloadPatchAsync(UpdateInfo updateInfo, Action<float> onProgress = null)
         {
             _state = UpdateState.Downloading;
+            
+            if (updateInfo == null || updateInfo.PatchFiles == null || updateInfo.PatchFiles.Count == 0)
+            {
+                Logger.Log("[HotUpdateManager] 没有需要下载的补丁文件");
+                _state = UpdateState.None;
+                return;
+            }
+            
             Logger.Log($"[HotUpdateManager] 开始下载补丁，共{updateInfo.PatchFiles.Count}个文件");
             
             try
             {
-                // TODO: 实现补丁下载逻辑
-                // 1. 遍历补丁文件列表
-                // 2. 使用PatchDownloader下载每个文件
-                // 3. 使用FileVerifier校验文件完整性
+                long totalSize = VersionManager.CalculateTotalSize(updateInfo.PatchFiles);
+                long downloadedSize = 0;
                 
-                await UniTask.Delay(100);
-                onProgress?.Invoke(1.0f);
+                Logger.Log($"[HotUpdateManager] 总下载大小: {VersionManager.FormatFileSize(totalSize)}");
+                
+                // 下载目录
+                string downloadDir = Application.persistentDataPath;
+                
+                // 下载每个补丁文件
+                for (int i = 0; i < updateInfo.PatchFiles.Count; i++)
+                {
+                    PatchFile patchFile = updateInfo.PatchFiles[i];
+                    string savePath = Path.Combine(downloadDir, patchFile.FileName);
+                    
+                    Logger.Log($"[HotUpdateManager] 下载文件 ({i + 1}/{updateInfo.PatchFiles.Count}): {patchFile.FileName}");
+                    
+                    // 下载文件
+                    bool success = await _patchDownloader.DownloadFileAsync(patchFile.Url, savePath, progress =>
+                    {
+                        // 计算总进度
+                        float fileProgress = progress * patchFile.Size;
+                        float totalProgress = (downloadedSize + fileProgress) / totalSize;
+                        onProgress?.Invoke(totalProgress);
+                    });
+                    
+                    if (!success)
+                    {
+                        Logger.Error($"[HotUpdateManager] 下载文件失败: {patchFile.FileName}");
+                        _state = UpdateState.Error;
+                        OnUpdateError?.Invoke($"下载文件失败: {patchFile.FileName}");
+                        return;
+                    }
+                    
+                    // 校验文件
+                    bool verified = await _fileVerifier.VerifyFileAsync(savePath, patchFile.MD5);
+                    
+                    if (!verified)
+                    {
+                        Logger.Error($"[HotUpdateManager] 文件校验失败: {patchFile.FileName}");
+                        
+                        // 删除损坏的文件
+                        if (File.Exists(savePath))
+                        {
+                            File.Delete(savePath);
+                        }
+                        
+                        _state = UpdateState.Error;
+                        OnUpdateError?.Invoke($"文件校验失败: {patchFile.FileName}");
+                        return;
+                    }
+                    
+                    downloadedSize += patchFile.Size;
+                }
+                
+                // 保存新版本信息到本地
+                VersionManager.SaveLocalVersion(updateInfo);
                 
                 Logger.Log("[HotUpdateManager] 补丁下载完成");
-                _state = UpdateState.None;
+                onProgress?.Invoke(1.0f);
+                _state = UpdateState.Complete;
             }
             catch (Exception ex)
             {
