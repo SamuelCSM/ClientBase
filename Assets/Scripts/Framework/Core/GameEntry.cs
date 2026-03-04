@@ -60,7 +60,7 @@ namespace Framework.Core
         /// <summary>
         /// 热更新管理器
         /// </summary>
-        public static HotUpdateManager HotUpdate { get; private set; }
+        public static HotUpdate.HotUpdateManager HotUpdate { get; private set; }
 
         // ==================== 生命周期方法 ====================
 
@@ -111,7 +111,7 @@ namespace Framework.Core
 
             // 待实现的Manager（当实现后取消注释）
             Scene = AddComponent<Framework.SceneManager>();
-            // HotUpdate = AddComponent<HotUpdateManager>();
+            HotUpdate = AddComponent<HotUpdate.HotUpdateManager>();
 
 			Debug.Log("[GameEntry] 所有Manager初始化完成");
         }
@@ -192,15 +192,5 @@ namespace Framework.Core
 
             base.OnApplicationQuit();
         }
-    }
-
-    // ==================== Manager 占位类 ====================
-    // 这些类将在后续任务中实现，目前只是占位以避免编译错误
-
-    /// <summary>
-    /// 热更新管理器（占位）
-    /// </summary>
-    public class HotUpdateManager : FrameworkComponent
-    {
     }
 }

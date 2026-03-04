@@ -1,0 +1,55 @@
+<linker>
+    <!-- 防止HybridCLR相关代码被裁剪 -->
+    <assembly fullname="HotUpdate" preserve="all"/>
+    
+    <!-- 防止Framework代码被裁剪 -->
+    <assembly fullname="Framework" preserve="all"/>
+    
+    <!-- 防止UniTask被裁剪 -->
+    <assembly fullname="UniTask" preserve="all"/>
+    
+    <!-- 防止Protobuf被裁剪 -->
+    <assembly fullname="protobuf-net" preserve="all"/>
+    <assembly fullname="protobuf-net.Core" preserve="all"/>
+    
+    <!-- 防止SQLite被裁剪 -->
+    <assembly fullname="SQLite-net" preserve="all"/>
+    <assembly fullname="SQLitePCLRaw.core" preserve="all"/>
+    <assembly fullname="SQLitePCLRaw.provider.e_sqlite3" preserve="all"/>
+    <assembly fullname="SQLitePCLRaw.batteries_v2" preserve="all"/>
+    
+    <!-- 防止System相关程序集被裁剪 -->
+    <assembly fullname="System.Core">
+        <type fullname="System.Linq.Expressions.Interpreter.LightLambda" preserve="all"/>
+    </assembly>
+    
+    <assembly fullname="System">
+        <type fullname="System.Net.Sockets.Socket" preserve="all"/>
+        <type fullname="System.Net.Sockets.TcpClient" preserve="all"/>
+        <type fullname="System.Net.Sockets.NetworkStream" preserve="all"/>
+    </assembly>
+    
+    <!-- 防止Unity核心模块被裁剪 -->
+    <assembly fullname="UnityEngine.CoreModule">
+        <type fullname="UnityEngine.GameObject" preserve="all"/>
+        <type fullname="UnityEngine.Transform" preserve="all"/>
+        <type fullname="UnityEngine.MonoBehaviour" preserve="all"/>
+        <type fullname="UnityEngine.Component" preserve="all"/>
+    </assembly>
+    
+    <assembly fullname="UnityEngine.UI">
+        <type fullname="UnityEngine.UI.Button" preserve="all"/>
+        <type fullname="UnityEngine.UI.Text" preserve="all"/>
+        <type fullname="UnityEngine.UI.Image" preserve="all"/>
+        <type fullname="UnityEngine.UI.ScrollRect" preserve="all"/>
+    </assembly>
+    
+    <!-- 防止Addressables被裁剪 -->
+    <assembly fullname="Unity.Addressables">
+        <type fullname="UnityEngine.AddressableAssets.Addressables" preserve="all"/>
+    </assembly>
+    
+    <assembly fullname="Unity.ResourceManager">
+        <type fullname="UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle" preserve="all"/>
+    </assembly>
+</linker>

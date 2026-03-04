@@ -1,0 +1,20 @@
+{
+    "name": "HotUpdate",
+    "rootNamespace": "HotUpdate",
+    "references": [
+        "Framework",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "UniTask",
+        "protobuf-net"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
