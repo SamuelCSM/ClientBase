@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 
 namespace Framework.Core
 {
@@ -92,6 +93,110 @@ namespace Framework.Core
 
             Debug.Log("[GameEntry] 框架初始化完成");
         }
+
+        /// <summary>
+        /// 游戏启动流程
+        /// 在所有Manager初始化完成后执行
+        /// </summary>
+        private async void Start()
+        {
+            Debug.Log("[GameEntry] 开始游戏启动流程...");
+
+            try
+            {
+                // 1. 检查本地版本
+                Debug.Log("[GameEntry] 步骤1: 检查本地版本");
+                Framework.HotUpdate.UpdateInfo localVersion = Framework.HotUpdate.VersionManager.GetLocalVersion();
+                Debug.Log($"[GameEntry] 本地版本: {localVersion.AppVersion}, 资源版本: {localVersion.ResourceVersion}, 代码版本: {localVersion.CodeVersion}");
+
+                // 2. 检查更新（如果配置了更新服务器URL）
+                string updateUrl = GetUpdateServerUrl();
+
+                if (!string.IsNullOrEmpty(updateUrl))
+                {
+                    Debug.Log($"[GameEntry] 步骤2: 检查更新 - {updateUrl}");
+
+                    Framework.HotUpdate.UpdateInfo serverVersion = await HotUpdate.CheckUpdateAsync(updateUrl);
+
+                    if (serverVersion != null && serverVersion.Type != Framework.HotUpdate.UpdateType.None)
+                    {
+                        Debug.Log($"[GameEntry] 发现更新: {serverVersion.Type}");
+
+                        // 如果是强制更新，提示用户
+                        if (serverVersion.ForceUpdate)
+                        {
+                            Debug.Log("[GameEntry] 需要强制更新");
+                            // TODO: 显示强制更新UI，引导用户下载新版本
+                            // 这里暂时跳过，实际项目中应该显示UI并阻止继续
+                        }
+
+                        // 3. 下载补丁文件
+                        if (serverVersion.Type == Framework.HotUpdate.UpdateType.HotUpdate)
+                        {
+                            Debug.Log("[GameEntry] 步骤3: 下载补丁文件");
+
+                            await HotUpdate.DownloadPatchAsync(serverVersion, progress =>
+                            {
+                                Debug.Log($"[GameEntry] 下载进度: {progress * 100:F2}%");
+                                // TODO: 更新下载进度UI
+                            });
+
+                            Debug.Log("[GameEntry] 补丁下载完成");
+                        }
+                    }
+                    else
+                    {
+                        Debug.Log("[GameEntry] 无需更新，使用本地版本");
+                    }
+                }
+                else
+                {
+                    Debug.Log("[GameEntry] 步骤2: 跳过更新检查（未配置更新服务器）");
+                }
+
+                // 4. 加载HybridCLR程序集
+                Debug.Log("[GameEntry] 步骤4: 加载热更新程序集");
+                HotUpdate.LoadHotUpdateAssembly();
+
+                // 5. 加载AOT泛型补充元数据
+                Debug.Log("[GameEntry] 步骤5: 加载AOT泛型补充元数据");
+                HotUpdate.LoadMetadata();
+
+                // 6. 调用热更新入口
+                Debug.Log("[GameEntry] 步骤6: 启动热更新逻辑");
+                HotUpdate.StartHotfix();
+
+                Debug.Log("[GameEntry] 游戏启动流程完成");
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogError($"[GameEntry] 游戏启动流程失败: {ex.Message}");
+                Debug.LogError($"[GameEntry] 堆栈跟踪: {ex.StackTrace}");
+
+                // TODO: 显示错误UI，提示用户重启或重新安装
+                // 这里暂时只记录错误
+            }
+        }
+
+        /// <summary>
+        /// 获取更新服务器URL
+        /// 可以从配置文件、PlayerPrefs或其他地方读取
+        /// </summary>
+        /// <returns>更新服务器URL，如果未配置则返回null</returns>
+        private string GetUpdateServerUrl()
+        {
+            // TODO: 从配置文件或其他地方读取更新服务器URL
+            // 这里暂时返回空，表示不检查更新
+            // 实际项目中应该从配置文件读取，例如：
+            // return PlayerPrefs.GetString("UpdateServerUrl", "");
+            // 或者从Resources中的配置文件读取
+
+            // 示例URL（实际使用时需要替换为真实的服务器地址）
+            // return "http://your-update-server.com/updates";
+
+            return string.Empty;
+        }
+
 
         /// <summary>
         /// 初始化所有Manager
